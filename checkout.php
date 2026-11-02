@@ -87,10 +87,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $product = $lockProduct->fetch();
 
                     if (!$product || (int) $product['is_active'] !== 1) {
+                        unset($_SESSION['cart'][$productId]);
                         throw new CheckoutFailure('A product in your cart is no longer available. Review your cart and try again.');
                     }
 
                     if ((int) $product['stock'] < $quantity) {
+                        if ((int) $product['stock'] < 1) {
+                            unset($_SESSION['cart'][$productId]);
+                        } else {
+                            $_SESSION['cart'][$productId] = (int) $product['stock'];
+                        }
                         throw new CheckoutFailure(
                             $product['name'] . ' does not have enough stock for that quantity. Your cart has been updated; please review it and try again.'
                         );
