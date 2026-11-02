@@ -60,10 +60,14 @@ function cart_count(): int
         return 0;
     }
 
-    return array_sum(array_map(
-        static fn (mixed $quantity): int => is_int($quantity) && $quantity > 0 ? $quantity : 0,
-        $cart
-    ));
+    $count = 0;
+    foreach ($cart as $productId => $quantity) {
+        if (filter_var((string) $productId, FILTER_VALIDATE_INT) !== false && (int) $productId > 0 && is_int($quantity) && $quantity > 0) {
+            $count += $quantity;
+        }
+    }
+
+    return $count;
 }
 
 function set_flash(string $type, string $message): void

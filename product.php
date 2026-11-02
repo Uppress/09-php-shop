@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/app/bootstrap.php';
+require_once __DIR__ . '/app/cart.php';
 
 $slug = isset($_GET['slug']) && is_string($_GET['slug']) ? trim($_GET['slug']) : '';
 $statement = $pdo->prepare(
@@ -36,23 +37,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $rawQuantity = $_POST['quantity'] ?? null;
     $quantity = is_string($rawQuantity) ? filter_var($rawQuantity, FILTER_VALIDATE_INT) : false;
-    $cart = $_SESSION['cart'] ?? [];
-    if (!is_array($cart)) {
-        $cart = [];
-    }
-    $productId = (int) $product['id'];
-    $inCart = isset($cart[$productId]) && is_int($cart[$productId]) ? $cart[$productId] : 0;
-
     if ($quantity === false || $quantity < 1) {
         $errorMessage = 'Choose a quantity of at least 1.';
-    } elseif ((int) $product['stock'] < 1) {
-        $errorMessage = 'This product is currently out of stock.';
-    } elseif ($quantity + $inCart > (int) $product['stock']) {
-        $errorMessage = 'Only ' . max(0, (int) $product['stock'] - $inCart) . ' more available based on your cart.';
     } else {
-        $cart[$productId] = $inCart + $quantity;
-        $_SESSION['cart'] = $cart;
-        set_flash('success', $product['name'] . ' added to your cart.');
+        $notice = cart_add((int) $product['id'], $quantity);
+        set_flash($notice === null ? 'success' : 'warning', $notice ?? ($product['name'] . ' added to your cart.'));
         header('Location: ' . BASE_URL . '/product.php?slug=' . rawurlencode($product['slug']));
         exit;
     }
