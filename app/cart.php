@@ -95,6 +95,26 @@ function cart_clear(): void
     $_SESSION['cart'] = [];
 }
 
+function cart_price_to_cents(string $price): int
+{
+    if (!preg_match('/^(\d+)(?:\.(\d{1,2}))?$/D', $price, $matches)) {
+        throw new UnexpectedValueException('A product has an invalid price.');
+    }
+
+    $whole = (int) $matches[1];
+    $fraction = (int) str_pad($matches[2] ?? '', 2, '0');
+    if ($whole > intdiv(PHP_INT_MAX - $fraction, 100)) {
+        throw new OverflowException('A product price is outside the supported range.');
+    }
+
+    return ($whole * 100) + $fraction;
+}
+
+function cart_cents_to_decimal(int $cents): string
+{
+    return intdiv($cents, 100) . '.' . str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
+}
+
 function cart_items(): array
 {
     $normalizedCart = cart_normalized_data();
@@ -148,6 +168,11 @@ function cart_items(): array
         }
 
         $price = (string) $product['price'];
+        $priceCents = cart_price_to_cents($price);
+        if ($quantity > intdiv(PHP_INT_MAX, max(1, $priceCents))) {
+            throw new OverflowException('Cart line total is outside the supported range.');
+        }
+
         $lines[] = [
             'product_id' => $id,
             'name' => $product['name'],
@@ -157,7 +182,7 @@ function cart_items(): array
             'quantity' => $quantity,
             'stock' => $stock,
             'stock_ok' => $quantity <= $stock,
-            'line_total' => number_format(round((float) $price * $quantity, 2), 2, '.', ''),
+            'line_total' => cart_cents_to_decimal($priceCents * $quantity),
         ];
     }
 
@@ -171,10 +196,10 @@ function cart_items(): array
 
 function cart_total(): string
 {
-    $total = 0.0;
+    $totalCents = 0;
     foreach (cart_items() as $item) {
-        $total += (float) $item['line_total'];
+        $totalCents += cart_price_to_cents($item['line_total']);
     }
 
-    return number_format(round($total, 2), 2, '.', '');
+    return cart_cents_to_decimal($totalCents);
 }
